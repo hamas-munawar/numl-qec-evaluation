@@ -1,101 +1,116 @@
-const statusLog = document.getElementById("status-log");
-const actionBtns = document.querySelectorAll(".btn");
+const log = document.getElementById("log");
+const ratingSelect = document.getElementById("rating-selector");
+const actionButtons = document.querySelectorAll(".btn");
 
-function addProcessStep(message, isError = false) {
-  if (statusLog.innerText.includes("System ready")) statusLog.innerHTML = "";
+/**
+ * Sequential Logger with Auto-Scroll
+ */
+function addLogStep(msg, isError = false) {
+  if (log.innerText.includes("Ready")) log.innerHTML = "";
 
-  const entry = document.createElement("div");
-  entry.className = isError ? "step error" : "step done";
-  entry.innerText = message;
+  const div = document.createElement("div");
+  div.className = isError ? "step error" : "step done";
+  div.innerText = msg;
 
-  statusLog.appendChild(entry);
-  statusLog.scrollTop = statusLog.scrollHeight;
+  log.appendChild(div);
+
+  // Auto-scroll to ensure latest step is visible
+  log.scrollTop = log.scrollHeight;
 }
 
-async function automationEngine(config, shouldSubmit) {
+/**
+ * Main Injection Logic
+ */
+async function automationEngine(config, targetRating, shouldSubmit) {
   const delay = (ms) => new Promise((res) => setTimeout(res, ms));
-
-  // Find radio buttons
   const radios = document.querySelectorAll(
-    `input[type="radio"][value="${config.rating}"]`
+    `input[type="radio"][value="${targetRating}"]`
   );
-  if (radios.length === 0)
-    return { success: false, msg: "Evaluation form not found." };
 
-  // Set ratings
+  if (radios.length === 0)
+    return { success: false, msg: "Form not found on this page." };
+
+  // 1. Set ratings
   radios.forEach((r) => (r.checked = true));
   await delay(300);
 
-  // Write comments
-  const pickRandom = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  // 2. Write Shuffle Comments
+  const pool = config.pools[targetRating];
+  const pick = () => pool[Math.floor(Math.random() * pool.length)];
+
   if (config.selectors) {
-    config.selectors.forEach((id) => {
-      const el = document.querySelector(id);
-      if (el) el.value = pickRandom(config.commentPool);
+    config.selectors.forEach((s) => {
+      const el = document.querySelector(s);
+      if (el) el.value = pick();
     });
   } else {
     for (let i = 1; i <= config.maxBoxes; i++) {
       const el = document.getElementById(`${config.idPrefix}${i}`);
-      if (el) el.value = pickRandom(config.commentPool);
+      if (el) el.value = pick();
     }
   }
   await delay(300);
 
-  // Handle Submission
-  if (shouldSubmit) {
-    const fn = window[config.submitAction];
-    if (typeof fn === "function") {
-      fn();
-      return { success: true };
-    } else {
-      return { success: false, msg: "Submission trigger failed." };
-    }
+  // 3. Optional Submission
+  if (shouldSubmit && typeof window[config.submitAction] === "function") {
+    window[config.submitAction]();
+    return { success: true, submitted: true };
   }
-  return { success: true, manual: true };
+  return { success: true, submitted: false };
 }
 
-async function run(type, submit) {
+/**
+ * Controller
+ */
+async function start(type, submit) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  actionBtns.forEach((b) => (b.disabled = true));
-  statusLog.innerHTML = "";
 
-  addProcessStep("Checking the portal page...");
+  // Disable UI during processing
+  actionButtons.forEach((btn) => (btn.disabled = true));
+  log.innerHTML = "";
+
+  const ratingKey = ratingSelect.value;
+  const targetValue = EVALUATION_CONFIG.ratingMap[ratingKey];
+
+  addLogStep("Scanning portal page...");
+
   try {
     const results = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: automationEngine,
-      args: [CONFIG[type], submit],
+      args: [EVALUATION_CONFIG[type], targetValue, submit],
       world: "MAIN",
     });
 
     const status = results[0].result;
+
     if (status.success) {
-      addProcessStep("Applying ratings...");
-      addProcessStep("Writing feedback comments...");
-      addProcessStep(
-        submit
+      addLogStep(`Setting ratings to ${ratingKey}...`);
+      addLogStep("Writing feedback comments...");
+      addLogStep(
+        status.submitted
           ? "Form submitted successfully!"
-          : "Form is ready for your review."
+          : "Form filled for your review."
       );
     } else {
-      addProcessStep(status.msg, true);
+      addLogStep(status.msg, true);
     }
   } catch (e) {
-    addProcessStep("Error: Please navigate to the form first.", true);
+    addLogStep("Error: Please open the evaluation form first.", true);
   } finally {
-    actionBtns.forEach((b) => (b.disabled = false));
+    actionButtons.forEach((btn) => (btn.disabled = false));
   }
 }
 
 document
   .getElementById("fill-t")
-  .addEventListener("click", () => run("teacher", false));
+  .addEventListener("click", () => start("teacher", false));
 document
   .getElementById("sub-t")
-  .addEventListener("click", () => run("teacher", true));
+  .addEventListener("click", () => start("teacher", true));
 document
   .getElementById("fill-s")
-  .addEventListener("click", () => run("subject", false));
+  .addEventListener("click", () => start("subject", false));
 document
   .getElementById("sub-s")
-  .addEventListener("click", () => run("subject", true));
+  .addEventListener("click", () => start("subject", true));
