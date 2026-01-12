@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      :root {
+        --primary: #4f46e5;
+        --success: #10b981;
+        --danger: #ef4444;
+        --bg-light: #f8fafc;
+        --text-dark: #1e293b;
+        --text-muted: #64748b;
+      }
+
+      body {
+        width: 320px;
+        font-family: "Inter", -apple-system, Segoe UI, sans-serif;
+        background-color: var(--bg-light);
+        color: var(--text-dark);
+        margin: 0;
+        padding: 24px;
+      }
+
+      /* UPDATED HEADER STYLES */
+      .app-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center; /* Centers everything horizontally */
+        margin-bottom: 28px;
+      }
+
+      .logo-img {
+        width: 80px; /* Adjust based on your actual logo size */
+        height: auto;
+        margin-bottom: 12px;
+      }
+
+      .app-header h1 {
+        font-size: 16px;
+        margin: 0;
+        color: var(--text-dark);
+        font-weight: 700;
+      }
+
+      .app-header p {
+        font-size: 12px;
+        margin: 4px 0;
+        color: var(--primary);
+        font-weight: 600;
+      }
+      /* END UPDATED HEADER STYLES */
+
+      .group-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin: 16px 0 8px;
+        letter-spacing: 0.5px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1.2fr;
+        gap: 10px;
+      }
+
+      .btn {
+        padding: 12px 8px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        background: #fff;
+        transition: all 0.2s ease;
+        color: var(--text-dark);
+      }
+
+      .btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: #f0f9ff;
+      }
+      .btn-fill-submit {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        box-shadow: 0 2px 4px rgba(79, 70, 229, 0.2);
+      }
+      .btn-fill-submit:hover {
+        background: #4338ca;
+        color: #fff;
+        transform: translateY(-1px);
+      }
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .status-area {
+        margin-top: 24px;
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        border: 1px solid #e2e8f0;
+        min-height: 100px;
+      }
+
+      .status-title {
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        text-transform: uppercase;
+      }
+      #status-log {
+        font-size: 13px;
+        line-height: 1.8;
+        color: var(--text-muted);
+      }
+      .step {
+        position: relative;
+        padding-left: 24px;
+        margin-bottom: 8px;
+      }
+      .step::before {
+        content: "";
+        position: absolute;
+        left: 6px;
+        top: 8px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #cbd5e1;
+      }
+      .step.done {
+        color: var(--text-dark);
+        font-weight: 500;
+      }
+      .step.done::before {
+        background: var(--primary);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+      }
+      .step.error {
+        color: var(--danger);
+      }
+      .step.error::before {
+        background: var(--danger);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-header">
+      <img src="images/logo.png" alt="NUML Logo" class="logo-img" />
+      <h1>NUML QEC Evaluation</h1>
+    </div>
+
+    <div class="group-label">Teacher Evaluation</div>
+    <div class="grid">
+      <button id="fill-t" class="btn">Just Fill</button>
+      <button id="sub-t" class="btn btn-fill-submit">Fill & Submit</button>
+    </div>
+
+    <div class="group-label">Course Evaluation</div>
+    <div class="grid">
+      <button id="fill-s" class="btn">Just Fill</button>
+      <button id="sub-s" class="btn btn-fill-submit">Fill & Submit</button>
+    </div>
+
+    <div class="status-area">
+      <div class="status-title">Operation Progress</div>
+      <div id="status-log">System ready. Select an option above.</div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
