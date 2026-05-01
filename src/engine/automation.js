@@ -17,7 +17,7 @@
  */
 export async function automationEngine(config, targetRating, shouldSubmit) {
   const poll = (fn, timeout = 2000, interval = 100) => {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const startTime = Date.now();
       const check = () => {
         const res = fn();

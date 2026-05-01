@@ -141,8 +141,9 @@ async function runOnCurrentTab(type, submit) {
 // ── Dropdown iteration: fill every option on current form page ─────────────
 
 /**
- * Reads the DDLTeachers / DDLCourses dropdown, iterates every option,
- * triggers the ASP.NET PostBack for each, fills, and (if requested) submits.
+ * Reads the DDLTeachers / DDLCourses dropdown, iterates every non-placeholder
+ * option (skipping empty / "Select…" entries), triggers the ASP.NET PostBack
+ * for each, fills, and (if requested) submits.
  */
 async function iterateDropdown(tabId, config, value, submit) {
   // 1. Read dropdown options
