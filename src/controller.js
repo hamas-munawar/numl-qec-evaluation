@@ -182,13 +182,18 @@ async function iterateDropdown(tabId, config, value, submit) {
       // 2. Set up reload watcher BEFORE triggering PostBack
       const reloadAfterSelect = waitForReload(tabId);
 
-      await chrome.scripting.executeScript({
+      const [{ result: didSelect }] = await chrome.scripting.executeScript({
         target: { tabId },
         func: selectDropdownOption,
         args: [optVal],
         world: "MAIN",
       });
 
+      if (didSelect === false) {
+        addStep(logEl, `${short}: dropdown selection failed — skipping.`, "error");
+        errors++;
+        continue;
+      }
       await reloadAfterSelect;
     } catch (e) {
       addStep(logEl, `${short}: navigation error — skipping.`, "error");
