@@ -174,7 +174,7 @@ async function iterateDropdown(tabId, config, value, submit) {
 
   for (let i = 0; i < opts.length; i++) {
     const { value: optVal, text } = opts[i];
-    const short = text.length > 40 ? text.slice(0, 37) + "..." : text;
+    const short = text.length > 40 ? text.slice(0, 37) + "…" : text;
 
     addStep(logEl, `[${i + 1}/${opts.length}] ${short}`, "info");
 
