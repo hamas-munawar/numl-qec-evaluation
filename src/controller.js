@@ -57,6 +57,8 @@ function waitForReload(tabId, timeout = 20_000) {
 
     // Hard timeout for the entire process
     const timer = setTimeout(() => {
+      done = true;
+      clearTimeout(loadStartTimer);
       chrome.tabs.onUpdated.removeListener(fn);
       resolve();
     }, timeout);
