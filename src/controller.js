@@ -46,8 +46,6 @@ function getTarget()    { const k = ratingSelect.value; return { key: k, value: 
 /** In DEV_MODE any submit intent is silently downgraded to fill-only. */
 function canSubmit(intended) { return intended && !DEV_MODE; }
 
-const delay = (ms) => new Promise((r) => setTimeout(r, ms));
-
 /**
  * Waits for the active tab to fire loading → complete.
  * Resolves on timeout so the loop always continues.
@@ -57,19 +55,35 @@ function waitForReload(tabId, timeout = 20_000) {
     let loading = false;
     let done    = false;
 
+    // Hard timeout for the entire process
     const timer = setTimeout(() => {
+      done = true;
+      clearTimeout(loadStartTimer);
       chrome.tabs.onUpdated.removeListener(fn);
       resolve();
     }, timeout);
 
+    // Initial timeout: if it doesn't start loading in 3s, assume no reload
+    const loadStartTimer = setTimeout(() => {
+      if (!loading && !done) {
+        done = true;
+        chrome.tabs.onUpdated.removeListener(fn);
+        clearTimeout(timer);
+        resolve();
+      }
+    }, 3000);
+
     function fn(id, info) {
       if (id !== tabId || done) return;
-      if (info.status === "loading")                      loading = true;
+      if (info.status === "loading") {
+        loading = true;
+        clearTimeout(loadStartTimer);
+      }
       if (info.status === "complete" && loading) {
         done = true;
         chrome.tabs.onUpdated.removeListener(fn);
         clearTimeout(timer);
-        setTimeout(resolve, 900); // let portal JS initialise
+        setTimeout(resolve, 50); // minimal buffer
       }
     }
 
@@ -127,8 +141,9 @@ async function runOnCurrentTab(type, submit) {
 // ── Dropdown iteration: fill every option on current form page ─────────────
 
 /**
- * Reads the DDLTeachers / DDLCourses dropdown, iterates every option,
- * triggers the ASP.NET PostBack for each, fills, and (if requested) submits.
+ * Reads the DDLTeachers / DDLCourses dropdown, iterates every non-placeholder
+ * option (skipping empty / "Select…" entries), triggers the ASP.NET PostBack
+ * for each, fills, and (if requested) submits.
  */
 async function iterateDropdown(tabId, config, value, submit) {
   // 1. Read dropdown options
@@ -142,50 +157,88 @@ async function iterateDropdown(tabId, config, value, submit) {
     return { found: false };
   }
 
-  const opts = dropdown.options;
-  addStep(logEl, `Found ${opts.length} item(s) in dropdown.`, "info");
+  // Filter out placeholder / empty options
+  // e.g. value="" | "0" | text starting with "--" or "Select"
+  const isPlaceholder = ({ value: v, text: t }) =>
+    !v || v === "0" || t.trim() === "" ||
+    /^[-\u2013\u2014\s]/.test(t.trim()) || /^select/i.test(t.trim());
+
+  const opts = dropdown.options.filter((o) => !isPlaceholder(o));
+
+  if (!opts.length) {
+    addStep(logEl, "No valid items found — all appear to be placeholders.", "info");
+    return { found: true, total: 0, errors: 0, skipped: dropdown.options.length };
+  }
+
+  addStep(logEl, `Found ${opts.length} item(s) to process.`, "info");
 
   let errors = 0;
+  let skipped = 0;
 
   for (let i = 0; i < opts.length; i++) {
     const { value: optVal, text } = opts[i];
-    const short = text.length > 36 ? text.slice(0, 33) + "…" : text;
+    const short = text.length > 40 ? text.slice(0, 37) + "…" : text;
 
     addStep(logEl, `[${i + 1}/${opts.length}] ${short}`, "info");
 
-    // 2. Set up reload watcher BEFORE triggering PostBack
-    const reloadAfterSelect = waitForReload(tabId);
+    try {
+      // 2. Set up reload watcher BEFORE triggering PostBack
+      const reloadAfterSelect = waitForReload(tabId);
 
-    await chrome.scripting.executeScript({
-      target: { tabId },
-      func: selectDropdownOption,
-      args: [optVal],
-      world: "MAIN",
-    });
+      const [{ result: didSelect }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: selectDropdownOption,
+        args: [optVal],
+        world: "MAIN",
+      });
 
-    await reloadAfterSelect;
+      if (didSelect === false) {
+        addStep(logEl, `${short}: dropdown selection failed — skipping.`, "error");
+        errors++;
+        continue;
+      }
+      await reloadAfterSelect;
+    } catch (e) {
+      addStep(logEl, `${short}: navigation error — skipping.`, "error");
+      errors++;
+      continue;
+    }
 
     // 3. Fill (and optionally submit)
     const reloadAfterSubmit = submit ? waitForReload(tabId) : Promise.resolve();
 
-    const [{ result: status }] = await chrome.scripting.executeScript({
-      target: { tabId },
-      func: automationEngine,
-      args: [config, value, submit],
-      world: "MAIN",
-    });
+    let status;
+    try {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId },
+        func: automationEngine,
+        args: [config, value, submit],
+        world: "MAIN",
+      });
+      status = result;
+    } catch {
+      addStep(logEl, `${short}: injection failed — skipped.`, "info");
+      skipped++;
+      continue;
+    }
 
     if (submit && status?.submitted) await reloadAfterSubmit;
 
     if (status?.success) {
       addStep(logEl, `${short}: ${status.submitted ? "submitted ✓" : "filled ✓"}`);
     } else {
-      addStep(logEl, `${short}: ${status?.msg ?? "failed"}`, "error");
-      errors++;
+      // "Form not found" = no radio buttons on page = soft skip, not a crash
+      if (status?.msg?.toLowerCase().includes("not found")) {
+        addStep(logEl, `${short}: no form loaded — skipped.`, "info");
+        skipped++;
+      } else {
+        addStep(logEl, `${short}: ${status?.msg ?? "failed"}`, "error");
+        errors++;
+      }
     }
   }
 
-  return { found: true, total: opts.length, errors };
+  return { found: true, total: opts.length, errors, skipped };
 }
 
 // ── Main orchestrator ─────────────────────────────────────────────────────
@@ -209,6 +262,12 @@ async function runAll(scope) {
       world: "MAIN",
     });
 
+    if (!sidebarUrls || sidebarUrls.length === 0) {
+      addStep(logEl, "Could not find evaluation links. Please navigate to the QEC Portal first.", "error");
+      setStatus("err");
+      return;
+    }
+
     const tasks = [];
     if (scope === "teacher" || scope === "all") {
       const url = (sidebarUrls ?? []).find((u) => u.toLowerCase().includes("teacherevaluation"));
@@ -220,6 +279,8 @@ async function runAll(scope) {
     }
 
     let grandTotal = 0;
+    let grandSkipped = 0;
+    let grandErrors = 0;
 
     for (const task of tasks) {
       // Navigate to the form page if we have its URL
@@ -237,12 +298,18 @@ async function runAll(scope) {
         setStatus("err");
       } else {
         grandTotal += result.total;
+        grandSkipped += (result.skipped || 0);
+        grandErrors += (result.errors || 0);
       }
     }
 
-    if (grandTotal > 0) {
-      addStep(logEl, `Done — ${grandTotal} evaluation(s) processed with rating "${key}".`);
-      setStatus("ok");
+    if (grandTotal > 0 || grandSkipped > 0 || grandErrors > 0) {
+      let summary = `Done — ${grandTotal} processed`;
+      if (grandSkipped > 0) summary += `, ${grandSkipped} skipped`;
+      if (grandErrors > 0) summary += `, ${grandErrors} failed`;
+      summary += ` with rating "${key}".`;
+      addStep(logEl, summary);
+      setStatus(grandErrors > 0 ? "err" : "ok");
     }
 
   } catch (e) {
