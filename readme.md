@@ -1,10 +1,10 @@
-# 🎓 NUML QEC Evaluation — v2.1
+# 🎓 NUML QEC Evaluation — v2.1.1
 
 A browser extension for **NUML students** that automatically fills and submits QEC evaluation forms — with professional, randomized feedback and full control over your rating.
 
 ---
 
-## ✨ What's New in v2.1
+## ✨ What's New in v2.1.1
 
 ### More Actions Per Section
 
