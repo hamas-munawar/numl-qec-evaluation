@@ -1,60 +1,77 @@
-# 🎓 NUML QEC Evaluation v1.1
+# 🎓 NUML QEC Evaluation — v2.0
 
-An aesthetic, high-performance browser extension specifically engineered for students at the **National University of Modern Languages (NUML)**. This tool automates the Quality Evaluation Cell (QEC) forms, providing professional, randomized feedback while offering full control over the rating tone.
-
-## ✨ Key Features: What's New in v1.1
-
-This extension streamlines your evaluation process with advanced automation and a polished user interface:
-
-### 1. Dynamic Rating Selection
-
-You can now choose the specific "mood" of your evaluation. The extension intelligently maps your choice to the portal's 1-5 scale:
-
-- **Best (5)**: Top-tier professional praise.
-- **Good (4)**: Positive, constructive feedback.
-- **Average (3)**: Neutral, standard observations.
-- **Bad (2)**: Highlighting areas for improvement.
-- **Worst (1)**: Formal complaints regarding academic standards.
-
-### 2. Smart Comment Shuffle (Long-Form)
-
-No more repetitive feedback. The extension pulls from a massive library of **10 unique, professional, long-form comments** for every single rating tier. Whether you are praising a teacher or critiquing a course, the feedback looks natural and detailed.
-
-### 3. Four-Mode Automation
-
-- **Teacher Evaluation**: "Just Fill" for review or "Fill & Submit" for speed.
-- **Course Evaluation**: "Just Fill" for review or "Fill & Submit" for speed.
-
-### 4. Professional UI/UX
-
-- **Branded Interface**: Features the official logo and a clean "Soft Porcelain" aesthetic.
+A browser extension for **NUML students** that automatically fills and submits QEC evaluation forms — with professional, randomized feedback and full control over your rating.
 
 ---
 
-## 🚀 How to Add it to Chrome
+## ✨ What's New in v2.0
 
-Since this is a custom tool for NUML students, follow these steps to install:
+### More Actions Per Section
 
-1.  **Download the Project**: Download project(click on green button `<> Code` and select download zip) or clone project (git clone https://github.com/hamas-munawar/numl-qec-evaluation.git). Save the extension folder (containing `manifest.json`, `index.html`, `config.js`, `script.js`,`data.js`, etc.) to your computer.
-2.  **Open Extensions Page**: In Chrome, type `chrome://extensions/` in the address bar and press **Enter**.
-3.  **Enable Developer Mode**: Toggle the switch in the top-right corner to **On**.
-4.  **Load the Folder**: Click **Load unpacked** in the top-left and select your project folder.
-5.  **Pin for Access**: Click the "Puzzle" icon in your toolbar and pin **NUML QEC Evaluation**.
+Each evaluation type (Teacher & Course) now has **three options** instead of two:
+
+| Button                            | What it does                                                                                 |
+| --------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Fill Only**                     | Fills the form with comments — you review before submitting                                  |
+| **Fill & Submit**                 | Fills and submits the current form automatically                                             |
+| **Submit All Teachers / Courses** | Finds every evaluation link in the portal sidebar and fills & submits each one automatically |
+
+### One-Click Complete Run
+
+The **"Fill & Submit All Evaluations"** button at the bottom handles everything — all Teacher _and_ Course forms — in a single click, without you having to navigate anywhere.
+
+### Smart Comment Library
+
+Pulls from **10 unique, detailed comments per rating tier** so your feedback never looks copy-pasted.
+
+### Live Activity Log
+
+A real-time log shows every step as it happens, with a colour-coded status dot (blue = running, green = done, red = error).
 
 ---
 
-## 🛠️ How to Use it
+## 🚀 How to Install
 
-1.  **Log in**: Sign in to your [NUML QEC Portal](https://qec.numl.edu.pk/qec).
-2.  **Open a Form**: Navigate to the **Teacher** or **Course** evaluation form.
-3.  **Set Your Tone**: Open the extension and use the dropdown to select your desired rating (Best to Worst).
-4.  **Click an Action**:
-    - **Just Fill**: Fills the form so you can read the comments before saving.
-    - **Fill & Submit**: Fills and clicks the "Save/Validate" button for you automatically.
-5.  **Monitor Progress**: The scrollable log will show you exactly what is happening in real-time.
+1. **Download**: Click the green **`<> Code`** button on GitHub → **Download ZIP**, then extract the folder. _(Or clone: `git clone https://github.com/hamas-munawar/numl-qec-evaluation.git`)_
+2. **Open Chrome Extensions**: Type `chrome://extensions/` in the address bar and press **Enter**.
+3. **Enable Developer Mode**: Toggle the switch in the top-right corner **On**.
+4. **Load the folder**: Click **Load unpacked** → select the extracted project folder.
+5. **Pin it**: Click the 🧩 puzzle icon in your toolbar → pin **NUML QEC Evaluation**.
+
+---
+
+## 🛠️ How to Use
+
+### For a single form (quick use)
+
+1. Log in to the [NUML QEC Portal](https://qec.numl.edu.pk/qec).
+2. Navigate to a **Teacher** or **Course** evaluation form.
+3. Open the extension → pick your **Rating Level**.
+4. Click **Fill Only** to review first, or **Fill & Submit** to submit immediately.
+
+### To auto-submit all forms at once (recommended)
+
+1. Log in and go to any page on the [NUML QEC Portal](https://qec.numl.edu.pk/qec) where the sidebar with evaluation links is visible.
+2. Open the extension → pick your **Rating Level**.
+3. Click **Fill & Submit All Evaluations** — the extension will navigate to each form, fill it, and submit it automatically.
+4. Watch the **Activity Log** at the bottom to track progress.
+
+> **Tip:** Use **Submit All Teachers** or **Submit All Courses** individually if you only need to complete one type.
+
+---
+
+## ⭐ Rating Guide
+
+| Rating                 | Portal Scale | Use when…                        |
+| ---------------------- | ------------ | -------------------------------- |
+| Excellent — Best       | 5 Stars      | Genuinely great teacher / course |
+| Very Good              | 4 Stars      | Good overall with minor issues   |
+| Satisfactory — Average | 3 Stars      | Neutral / standard experience    |
+| Below Average          | 2 Stars      | Notable issues worth flagging    |
+| Poor — Worst           | 1 Star       | Serious concerns about quality   |
 
 ---
 
 ## ⚖️ Disclaimer
 
-This tool is designed to assist students in completing mandatory feedback efficiently. As a responsible student, we recommend using the "Just Fill" option periodically to ensure the automated comments accurately reflect your actual experience before final submission.
+This tool is designed to help students complete mandatory QEC feedback efficiently. We recommend using **Fill Only** periodically to review the generated comments and ensure they reflect your actual experience before submitting.
