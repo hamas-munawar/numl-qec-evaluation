@@ -30,7 +30,10 @@ const ratingSelect = document.getElementById("rating-selector");
 const allBtns      = document.querySelectorAll(".btn");
 
 // ── Dev mode banner ───────────────────────────────────────────────────────
-if (DEV_MODE) document.getElementById("dev-banner").hidden = false;
+if (DEV_MODE) {
+  const banner = document.getElementById("dev-banner");
+  banner.style.display = "flex";
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 

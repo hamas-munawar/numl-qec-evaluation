@@ -3,7 +3,7 @@
 
 /* ── Dev Banner ──────────────────────────────────────────────────────── */
 .dev-banner {
-  display: flex;
+  display: none;               /* hidden by default — controller shows it */
   align-items: center;
   justify-content: center;
   gap: 6px;

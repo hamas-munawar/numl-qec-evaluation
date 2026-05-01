@@ -7,4 +7,4 @@
  *
  * ⚠️  Change this to false before your real evaluation run.
  */
-export const DEV_MODE = false;
+export const DEV_MODE = true;
