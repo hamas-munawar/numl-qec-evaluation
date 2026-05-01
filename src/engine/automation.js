@@ -16,39 +16,48 @@
  * @returns {{ success: boolean, submitted?: boolean, msg?: string }}
  */
 export async function automationEngine(config, targetRating, shouldSubmit) {
-  const delay = (ms) => new Promise((res) => setTimeout(res, ms));
+  const poll = (fn, timeout = 2000, interval = 100) => {
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      const check = () => {
+        const res = fn();
+        if (res) return resolve(res);
+        if (Date.now() - startTime > timeout) return resolve(null);
+        setTimeout(check, interval);
+      };
+      check();
+    });
+  };
 
-  // ── 1. Select all radio buttons matching the target rating ──────────────
-  const radios = document.querySelectorAll(
-    `input[type="radio"][value="${targetRating}"]`
-  );
+  // ── 1. Wait for radio buttons matching the target rating ─────────────────
+  const radios = await poll(() => {
+    const r = document.querySelectorAll(`input[type="radio"][value="${targetRating}"]`);
+    return r.length > 0 ? r : null;
+  });
 
-  if (radios.length === 0) {
-    return { success: false, msg: "Form not found on this page." };
+  if (!radios) {
+    return { success: false, msg: "Form not found on this page (timed out waiting)." };
   }
 
   radios.forEach((r) => (r.checked = true));
-  await delay(300);
 
-  // ── 2. Fill comment boxes with a random pick from the pool ──────────────
+  // ── 2. Fill comment boxes ────────────────────────────────────────────────
   const pool = config.pools[targetRating];
   const pick = () => pool[Math.floor(Math.random() * pool.length)];
 
   if (config.selectors) {
-    // Teacher form — explicit CSS selectors
+    // Teacher form
     config.selectors.forEach((s) => {
       const el = document.querySelector(s);
       if (el) el.value = pick();
     });
   } else {
-    // Subject form — sequential ID pattern
+    // Subject form
     for (let i = 1; i <= config.maxBoxes; i++) {
       const el = document.getElementById(`${config.idPrefix}${i}`);
       if (el) el.value = pick();
     }
   }
-
-  await delay(300);
 
   // ── 3. Optional submission ───────────────────────────────────────────────
   if (shouldSubmit && typeof window[config.submitAction] === "function") {
