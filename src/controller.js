@@ -2,19 +2,26 @@
  * @module controller
  * Popup entry-point — wires UI buttons to the automation engine.
  *
- * Button map:
- *   fill-t      → fill teacher form (current tab)
- *   sub-t       → fill & submit teacher form (current tab)
- *   sub-all-t   → fill & submit ALL teacher forms (navigate + fill each)
- *   fill-s      → fill course form (current tab)
- *   sub-s       → fill & submit course form (current tab)
- *   sub-all-s   → fill & submit ALL course forms (navigate + fill each)
- *   fill-all    → fill & submit ALL forms (teachers + courses)
+ * "Submit All" flow (per type):
+ *   1. Navigate to the form page (via sidebar link)
+ *   2. Read ALL options from the DDLTeachers / DDLCourses dropdown
+ *   3. For each option:
+ *      a. Select it  →  ASP.NET PostBack reloads the page
+ *      b. Wait for page to be fully loaded
+ *      c. Fill (and optionally submit) via automationEngine
+ *      d. If submitted, wait for the submission PostBack to settle
+ *      e. Next option
  */
 
 import { RATING_MAP, TEACHER_CONFIG, SUBJECT_CONFIG } from "./data/config.js";
-import { automationEngine, findFormUrls } from "./engine/automation.js";
+import {
+  automationEngine,
+  findFormUrls,
+  findEvalDropdown,
+  selectDropdownOption,
+} from "./engine/automation.js";
 import { addStep, clearLog } from "./ui/logger.js";
+import { DEV_MODE } from "./config/env.js";
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const logEl        = document.getElementById("log");
@@ -22,19 +29,56 @@ const statusDot    = document.getElementById("status-dot");
 const ratingSelect = document.getElementById("rating-selector");
 const allBtns      = document.querySelectorAll(".btn");
 
-// ── Shared helpers ────────────────────────────────────────────────────────
+// ── Dev mode banner ───────────────────────────────────────────────────────
+if (DEV_MODE) document.getElementById("dev-banner").hidden = false;
 
-function setEnabled(enabled) {
-  allBtns.forEach((b) => (b.disabled = !enabled));
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+function setEnabled(on) { allBtns.forEach((b) => (b.disabled = !on)); }
+
+function setStatus(s)   { statusDot.className = `log-status-dot ${s}`; }
+
+function getTarget()    { const k = ratingSelect.value; return { key: k, value: RATING_MAP[k] }; }
+
+/** In DEV_MODE any submit intent is silently downgraded to fill-only. */
+function canSubmit(intended) { return intended && !DEV_MODE; }
+
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Waits for the active tab to fire loading → complete.
+ * Resolves on timeout so the loop always continues.
+ */
+function waitForReload(tabId, timeout = 20_000) {
+  return new Promise((resolve) => {
+    let loading = false;
+    let done    = false;
+
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(fn);
+      resolve();
+    }, timeout);
+
+    function fn(id, info) {
+      if (id !== tabId || done) return;
+      if (info.status === "loading")                      loading = true;
+      if (info.status === "complete" && loading) {
+        done = true;
+        chrome.tabs.onUpdated.removeListener(fn);
+        clearTimeout(timer);
+        setTimeout(resolve, 900); // let portal JS initialise
+      }
+    }
+
+    chrome.tabs.onUpdated.addListener(fn);
+  });
 }
 
-function setStatus(state) {               // 'running' | 'ok' | 'err' | ''
-  statusDot.className = `log-status-dot ${state}`;
-}
-
-function getTarget() {
-  const key = ratingSelect.value;
-  return { key, value: RATING_MAP[key] };
+/** Navigate the tab to `url` and wait for full load. */
+function navigateTo(tabId, url) {
+  const p = waitForReload(tabId, 30_000);
+  chrome.tabs.update(tabId, { url });
+  return p;
 }
 
 // ── Single-form: fill current tab ─────────────────────────────────────────
@@ -42,26 +86,28 @@ function getTarget() {
 async function runOnCurrentTab(type, submit) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const { key, value } = getTarget();
-  const config = type === "teacher" ? TEACHER_CONFIG : SUBJECT_CONFIG;
-  const label  = type === "teacher" ? "Teacher" : "Course";
+  const config  = type === "teacher" ? TEACHER_CONFIG : SUBJECT_CONFIG;
+  const label   = type === "teacher" ? "Teacher" : "Course";
+  const doSubmit = canSubmit(submit);
 
   setEnabled(false);
   clearLog(logEl);
   setStatus("running");
   addStep(logEl, `Scanning ${label} form on current page…`, "info");
+  if (DEV_MODE && submit) addStep(logEl, "DEV MODE — submission skipped", "info");
 
   try {
     const [{ result: status }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: automationEngine,
-      args: [config, value, submit],
+      args: [config, value, doSubmit],
       world: "MAIN",
     });
 
     if (status.success) {
       addStep(logEl, `Rating set to "${key}"`);
-      addStep(logEl, "Feedback comments written to all fields");
-      addStep(logEl, status.submitted ? "Form submitted successfully." : "Form filled — ready to review.");
+      addStep(logEl, "Feedback comments written");
+      addStep(logEl, status.submitted ? "Form submitted ✓" : "Form filled — review and save manually.");
       setStatus("ok");
     } else {
       addStep(logEl, status.msg, "error");
@@ -75,103 +121,126 @@ async function runOnCurrentTab(type, submit) {
   }
 }
 
-// ── Multi-form: navigate and fill each matching form ──────────────────────
+// ── Dropdown iteration: fill every option on current form page ─────────────
 
-function navigateAndFill(tabId, url, config, targetValue, submit) {
-  return new Promise((resolve, reject) => {
-    let handled = false;
-
-    const timer = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      reject(new Error("Navigation timed out after 30s"));
-    }, 30_000);
-
-    function onUpdated(id, changeInfo) {
-      if (id !== tabId || changeInfo.status !== "complete" || handled) return;
-      handled = true;
-      chrome.tabs.onUpdated.removeListener(onUpdated);
-      clearTimeout(timer);
-
-      // 1 s delay — let portal JS fully initialize before injecting
-      setTimeout(async () => {
-        try {
-          const [{ result }] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: automationEngine,
-            args: [config, targetValue, submit],
-            world: "MAIN",
-          });
-          resolve(result);
-        } catch (e) {
-          reject(e);
-        }
-      }, 1000);
-    }
-
-    chrome.tabs.onUpdated.addListener(onUpdated);
-    chrome.tabs.update(tabId, { url });
+/**
+ * Reads the DDLTeachers / DDLCourses dropdown, iterates every option,
+ * triggers the ASP.NET PostBack for each, fills, and (if requested) submits.
+ */
+async function iterateDropdown(tabId, config, value, submit) {
+  // 1. Read dropdown options
+  const [{ result: dropdown }] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: findEvalDropdown,
+    world: "MAIN",
   });
+
+  if (!dropdown?.options?.length) {
+    return { found: false };
+  }
+
+  const opts = dropdown.options;
+  addStep(logEl, `Found ${opts.length} item(s) in dropdown.`, "info");
+
+  let errors = 0;
+
+  for (let i = 0; i < opts.length; i++) {
+    const { value: optVal, text } = opts[i];
+    const short = text.length > 36 ? text.slice(0, 33) + "…" : text;
+
+    addStep(logEl, `[${i + 1}/${opts.length}] ${short}`, "info");
+
+    // 2. Set up reload watcher BEFORE triggering PostBack
+    const reloadAfterSelect = waitForReload(tabId);
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: selectDropdownOption,
+      args: [optVal],
+      world: "MAIN",
+    });
+
+    await reloadAfterSelect;
+
+    // 3. Fill (and optionally submit)
+    const reloadAfterSubmit = submit ? waitForReload(tabId) : Promise.resolve();
+
+    const [{ result: status }] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: automationEngine,
+      args: [config, value, submit],
+      world: "MAIN",
+    });
+
+    if (submit && status?.submitted) await reloadAfterSubmit;
+
+    if (status?.success) {
+      addStep(logEl, `${short}: ${status.submitted ? "submitted ✓" : "filled ✓"}`);
+    } else {
+      addStep(logEl, `${short}: ${status?.msg ?? "failed"}`, "error");
+      errors++;
+    }
+  }
+
+  return { found: true, total: opts.length, errors };
 }
+
+// ── Main orchestrator ─────────────────────────────────────────────────────
 
 async function runAll(scope) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const { key, value } = getTarget();
+  const doSubmit = canSubmit(true);
 
   setEnabled(false);
   clearLog(logEl);
   setStatus("running");
-  addStep(logEl, "Searching for evaluation form links in sidebar…", "info");
+
+  if (DEV_MODE) addStep(logEl, "DEV MODE — forms will be filled but not submitted", "info");
 
   try {
-    const [{ result: urls }] = await chrome.scripting.executeScript({
+    // Get sidebar URLs for navigation
+    const [{ result: sidebarUrls }] = await chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: findFormUrls,
       world: "MAIN",
     });
 
-    if (!urls?.length) {
-      addStep(logEl, "No form links found — navigate to the portal dashboard first.", "error");
-      setStatus("err");
-      return;
-    }
-
-    const queue = [];
+    const tasks = [];
     if (scope === "teacher" || scope === "all") {
-      urls
-        .filter((u) => u.toLowerCase().includes("teacherevaluation"))
-        .forEach((url) => queue.push({ url, label: "Teacher", config: TEACHER_CONFIG }));
+      const url = (sidebarUrls ?? []).find((u) => u.toLowerCase().includes("teacherevaluation"));
+      tasks.push({ url, config: TEACHER_CONFIG, label: "Teacher" });
     }
     if (scope === "subject" || scope === "all") {
-      urls
-        .filter((u) => u.toLowerCase().includes("courseevaluation"))
-        .forEach((url) => queue.push({ url, label: "Course", config: SUBJECT_CONFIG }));
+      const url = (sidebarUrls ?? []).find((u) => u.toLowerCase().includes("courseevaluation"));
+      tasks.push({ url, config: SUBJECT_CONFIG, label: "Course" });
     }
 
-    if (!queue.length) {
-      addStep(logEl, "No matching evaluation links found in the sidebar.", "error");
-      setStatus("err");
-      return;
-    }
+    let grandTotal = 0;
 
-    addStep(logEl, `Found ${queue.length} form(s). Rating: "${key}". Starting…`, "info");
+    for (const task of tasks) {
+      // Navigate to the form page if we have its URL
+      if (task.url) {
+        addStep(logEl, `Navigating to ${task.label} evaluation page…`, "info");
+        await navigateTo(tab.id, task.url);
+      }
 
-    let hasError = false;
-    for (let i = 0; i < queue.length; i++) {
-      const { url, label, config } = queue[i];
-      addStep(logEl, `[${i + 1}/${queue.length}] Navigating to ${label} form…`, "info");
+      addStep(logEl, `Reading ${task.label} dropdown…`, "info");
 
-      const status = await navigateAndFill(tab.id, url, config, value, true);
+      const result = await iterateDropdown(tab.id, task.config, value, doSubmit);
 
-      if (status?.success) {
-        addStep(logEl, `${label}: ${status.submitted ? "submitted ✓" : "filled ✓"}`);
+      if (!result.found) {
+        addStep(logEl, `No dropdown found on ${task.label} page.`, "error");
+        setStatus("err");
       } else {
-        addStep(logEl, `${label}: ${status?.msg ?? "failed"}`, "error");
-        hasError = true;
+        grandTotal += result.total;
       }
     }
 
-    addStep(logEl, `All ${queue.length} evaluation(s) complete.`);
-    setStatus(hasError ? "err" : "ok");
+    if (grandTotal > 0) {
+      addStep(logEl, `Done — ${grandTotal} evaluation(s) processed with rating "${key}".`);
+      setStatus("ok");
+    }
 
   } catch (e) {
     addStep(logEl, `Error: ${e.message}`, "error");
