@@ -68,3 +68,41 @@ export function findFormUrls() {
   const links = document.querySelectorAll(".pcoded-submenu a[href]");
   return Array.from(links).map((a) => a.href);
 }
+
+/**
+ * Finds the teacher/course dropdown on an evaluation form page.
+ * Injected into the active tab — must be self-contained.
+ * @returns {{ id: string, options: {value:string, text:string}[] } | null}
+ */
+export function findEvalDropdown() {
+  const sel =
+    document.querySelector('[id*="DDLTeacher"]') ||
+    document.querySelector('[id*="DDLCourse"]') ||
+    document.querySelector('[id*="DDLSubject"]');
+  if (!sel) return null;
+  return {
+    id: sel.id,
+    options: Array.from(sel.options).map((o) => ({
+      value: o.value,
+      text: o.text.trim(),
+    })),
+  };
+}
+
+/**
+ * Selects an option in the dropdown and fires the change event
+ * so the ASP.NET __doPostBack triggers a page reload.
+ * Injected into the active tab — must be self-contained.
+ * @param {string} optionValue
+ * @returns {boolean} true if dropdown was found and updated
+ */
+export function selectDropdownOption(optionValue) {
+  const sel =
+    document.querySelector('[id*="DDLTeacher"]') ||
+    document.querySelector('[id*="DDLCourse"]') ||
+    document.querySelector('[id*="DDLSubject"]');
+  if (!sel) return false;
+  sel.value = optionValue;
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
