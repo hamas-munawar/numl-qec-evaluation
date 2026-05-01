@@ -10,11 +10,11 @@ A browser extension for **NUML students** that automatically fills and submits Q
 
 Each evaluation type (Teacher & Course) now has **three options** instead of two:
 
-| Button                            | What it does                                                                                 |
-| --------------------------------- | -------------------------------------------------------------------------------------------- |
-| **Fill Only**                     | Fills the form with comments — you review before submitting                                  |
-| **Fill & Submit**                 | Fills and submits the current form automatically                                             |
-| **Submit All Teachers / Courses** | Finds every evaluation link in the portal sidebar and fills & submits each one automatically |
+| Button                            | What it does                                                                                |
+| --------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Fill Only**                     | Fills the form with comments — you review before submitting                                 |
+| **Fill & Submit**                 | Fills and submits the current form automatically                                            |
+| **Submit All Teachers / Courses** | Iterates every teacher or course in the dropdown and fills & submits each one automatically |
 
 ### One-Click Complete Run
 
@@ -32,11 +32,61 @@ A real-time log shows every step as it happens, with a colour-coded status dot (
 
 ## 🚀 How to Install
 
-1. **Download**: Click the green **`<> Code`** button on GitHub → **Download ZIP**, then extract the folder. _(Or clone: `git clone https://github.com/hamas-munawar/numl-qec-evaluation.git`)_
-2. **Open Chrome Extensions**: Type `chrome://extensions/` in the address bar and press **Enter**.
-3. **Enable Developer Mode**: Toggle the switch in the top-right corner **On**.
-4. **Load the folder**: Click **Load unpacked** → select the extracted project folder.
-5. **Pin it**: Click the 🧩 puzzle icon in your toolbar → pin **NUML QEC Evaluation**.
+### Step 1 — Download the project
+
+Go to the [GitHub repository](https://github.com/hamas-munawar/numl-qec-evaluation), click the green **`<> Code`** button, then click **Download ZIP**.
+
+![Download ZIP from GitHub](images/guide/download-zip.png)
+
+---
+
+### Step 2 — Extract the ZIP
+
+Right-click the downloaded ZIP file and extract it to a folder you'll remember.
+
+![Extract the ZIP file](images/guide/extract-zip.png)
+
+You should see a folder containing `index.html`, `manifest.json`, and the `src/` folder.
+
+![Extracted folder contents](images/guide/extracted-zip.png)
+
+---
+
+### Step 3 — Open Chrome Extensions
+
+Type `chrome://extensions` in the Chrome address bar and press **Enter**.
+
+![Opening Chrome Extensions manager](images/guide/opening-extensions-manager.png)
+
+---
+
+### Step 4 — Enable Developer Mode
+
+Toggle the **Developer mode** switch in the top-right corner **On**.
+
+![Turning on Developer Mode](images/guide/turning-on-developer-mode.png)
+
+---
+
+### Step 5 — Load the extension
+
+Click **Load unpacked** in the top-left, then select the extracted project folder.
+
+![Clicking Load Unpacked button](images/guide/extension-load-button.png)
+
+![Selecting the project folder](images/guide/selecting-direcotry-to-load.png)
+
+The extension will now appear in your extensions list.
+
+![Extension showing in manager](images/guide/extension-showing-up-in-extension-manager.png)
+
+---
+
+### Step 6 — Pin it to your toolbar
+
+Click the 🧩 puzzle icon in the Chrome toolbar and pin **NUML QEC Evaluation** for easy access.
+
+![Pin extension to toolbar](images/guide/pin-extension-to-toolbar.png)
 
 ---
 
@@ -51,12 +101,15 @@ A real-time log shows every step as it happens, with a colour-coded status dot (
 
 ### To auto-submit all forms at once (recommended)
 
-1. Log in and go to any page on the [NUML QEC Portal](https://qec.numl.edu.pk/qec) where the sidebar with evaluation links is visible.
+1. Log in and navigate to a **Teacher** or **Course** evaluation form on the portal.
 2. Open the extension → pick your **Rating Level**.
-3. Click **Fill & Submit All Evaluations** — the extension will navigate to each form, fill it, and submit it automatically.
-4. Watch the **Activity Log** at the bottom to track progress.
+3. Click **Submit All Teacher Evaluations** or **Submit All Course Evaluations** — the extension will iterate through every teacher/course in the dropdown, fill each form, and submit it automatically.
+4. Or click **Fill & Submit All Evaluations** to do both types in one run.
+5. Watch the **Activity Log** at the bottom to track progress.
 
-> **Tip:** Use **Submit All Teachers** or **Submit All Courses** individually if you only need to complete one type.
+![Extension open on the QEC evaluation form](images/guide/open-qec-form-and-use-extension-accordingly.png)
+
+> **Tip:** Use **Fill Only** first to preview the generated comments before committing to a full submit run.
 
 ---
 
